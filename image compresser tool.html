@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Advanced Image Compressor & Converter</title>
+  <style>
+    body {
+      background: #0f0f0f;
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container {
+      background: #1e1e1e;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(255,255,255,0.1);
+      width: 100%;
+      max-width: 700px;
+      text-align: center;
+    }
+    h2 { color: #00e676; }
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 5px;
+    }
+    button {
+      background: #00e676;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    canvas { max-width: 100%; margin-top: 20px; display: block; }
+    a#download {
+      display: block;
+      text-align: center;
+      margin-top: 15px;
+      background: #2196f3;
+      color: #fff;
+      padding: 10px;
+      border-radius: 5px;
+      text-decoration: none;
+    }
+    .drop-area {
+      border: 2px dashed #555;
+      padding: 30px;
+      margin: 20px 0;
+      border-radius: 10px;
+      background: #2c2c2c;
+      cursor: pointer;
+    }
+    .drop-area.dragover {
+      border-color: #00e676;
+      background: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>📉 Compress & Convert Image</h2>
+
+    <div class="drop-area" id="drop-area">
+      Drag & Drop Image Here or Click to Browse
+      <input type="file" id="upload" accept="image/*" style="display:none;">
+    </div>
+
+    <label>Target File Size:
+      <input type="number" id="targetSize" placeholder="e.g. 100" />
+      <select id="unit">
+        <option value="KB">KB</option>
+        <option value="MB">MB</option>
+      </select>
+    </label><br>
+
+    <label>Convert Format:
+      <select id="format">
+        <option value="image/jpeg">JPG</option>
+        <option value="image/webp">WEBP</option>
+        <option value="image/png">PNG</option>
+        <option value="image/bmp">BMP</option>
+        <option value="image/avif">AVIF</option>
+      </select>
+    </label><br>
+
+    <button onclick="compressImage()">Compress & Convert</button>
+    <a id="download" download style="display:none;">⬇️ Download</a>
+
+    <canvas id="canvas" style="display:none;"></canvas>
+  </div>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const dropArea = document.getElementById('drop-area');
+    const format = document.getElementById('format');
+    const targetSize = document.getElementById('targetSize');
+    const unit = document.getElementById('unit');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const download = document.getElementById('download');
+    let img = new Image();
+
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    upload.addEventListener('change', e => {
+      if (e.target.files[0]) handleFile(e.target.files[0]);
+    });
+
+    dropArea.addEventListener('click', () => upload.click());
+
+    dropArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropArea.classList.add('dragover');
+    });
+
+    dropArea.addEventListener('dragleave', () => {
+      dropArea.classList.remove('dragover');
+    });
+
+    dropArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropArea.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+
+    function compressImage() {
+      const unitFactor = unit.value === 'MB' ? 1024 * 1024 : 1024;
+      const targetBytes = parseFloat(targetSize.value) * unitFactor;
+      const type = format.value;
+
+      if (!targetBytes || isNaN(targetBytes)) return alert("Enter a valid target size!");
+
+      let quality = 0.95;
+      let step = 0.05;
+
+      function attemptCompress() {
+        canvas.toBlob(blob => {
+          if (!blob) return alert("Compression failed");
+
+          const currentSize = blob.size;
+          const sizeKB = (currentSize / 1024).toFixed(1);
+          console.log(`Trying quality ${quality.toFixed(2)} = ${sizeKB} KB`);
+
+          if (currentSize <= targetBytes || quality <= 0.05) {
+            const url = URL.createObjectURL(blob);
+            download.href = url;
+            const ext = type.split('/')[1];
+            download.download = `compressed.${ext}`;
+            download.style.display = 'block';
+            download.textContent = `⬇️ Download (${(currentSize / 1024).toFixed(1)} KB)`;
+          } else {
+            quality -= step;
+            attemptCompress();
+          }
+        }, type, quality);
+      }
+
+      attemptCompress();
+    }
+  </script>
+</body>
+</html>
